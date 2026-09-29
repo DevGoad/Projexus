@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Blueprint Core Theme Tokens */
+  --bg-primary: #060d1a;
+  --bg-surface: #091322;
+  --bg-card: #0a162b;
+  --bg-card-hover: #0d1e3a;
+
+  /* Borders */
+  --border-blueprint: #152943;
+  --border-blueprint-bright: #22426f;
+  --border-blueprint-active: #38bdf8;
+
+  /* Accent Colors */
+  --accent-amber: #f59e0b;
+  --accent-amber-light: #fbbf24;
+  --accent-amber-glow: rgba(245, 158, 11, 0.25);
+
+  --accent-cyan: #22d3ee;
+  --accent-cyan-light: #67e8f9;
+  --accent-cyan-glow: rgba(34, 211, 238, 0.25);
+
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-cyan: #38bdf8;
+  --text-amber: #f59e0b;
+
+  /* Grid overlay */
+  --grid-line: rgba(56, 189, 248, 0.065);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-space-grotesk), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-image: 
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-attachment: fixed;
+}
+
+/* Blueprint Corner Crosses / Technical Grid Accents */
+.blueprint-box {
+  position: relative;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-blueprint);
+}
+
+.blueprint-box:hover {
+  border-color: var(--border-blueprint-bright);
+}
+
+/* Monospace text utility */
+.font-mono-tech {
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+/* Custom technical scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #060d1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #172a45;
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #234067;
+}
+
+/* Glow effects */
+.glow-amber {
+  filter: drop-shadow(0 0 6px var(--accent-amber-glow));
+}
+.glow-cyan {
+  filter: drop-shadow(0 0 6px var(--accent-cyan-glow));
+}
