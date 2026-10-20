@@ -1,6 +1,13 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+
+# Resilient EmailStr import: fall back to str if email-validator package is missing
+try:
+    import email_validator  # noqa: F401
+    from pydantic import EmailStr
+except (ImportError, Exception):
+    EmailStr = str  # type: ignore
 
 
 # ---------- Auth Schemas ----------
