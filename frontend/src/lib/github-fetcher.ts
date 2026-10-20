@@ -5,8 +5,11 @@
  * GitHub REST API and returns them in the { [path]: content } shape
  * that Sandpack expects for its `files` prop.
  *
- * Also includes Pyodide in-browser runtime generation for Python projects,
- * smart template detection, and blueprint-themed interactive fallbacks.
+ * Fully supports:
+ * - HTML repositories with custom filenames (e.g. developer_portfolio.html, home.html)
+ * - Subfolder static builds (public/, dist/, src/)
+ * - In-browser Pyodide execution for Python projects
+ * - Modern web frameworks (Vite, React, Next, Vue, Svelte)
  */
 
 export interface GitHubTreeItem {
@@ -54,15 +57,13 @@ const SKIP_PATHS = [
   '.git/',
   '.next/',
   '__pycache__/',
-  'dist/',
-  'build/',
   '.vscode/',
   '.idea/',
   'venv/',
   '.env.local',
 ];
 
-const MAX_FILE_SIZE = 100_000;
+const MAX_FILE_SIZE = 120_000;
 const MAX_FILES = 80;
 
 export function parseGitHubUrl(url: string): { owner: string; repo: string; branch?: string } | null {
@@ -137,7 +138,7 @@ async function fetchFileContent(owner: string, repo: string, path: string, sha: 
     const data = await res.json();
 
     if (data.encoding === 'base64') {
-      return atob(data.content.replace(/\n/g, ''));
+      return decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
     }
     return data.content || '';
   } catch {
@@ -164,6 +165,49 @@ export interface FetchRepoResult {
   isPython: boolean;
   totalFetched: number;
   totalSkipped: number;
+}
+
+/**
+ * Intelligent HTML file discovery.
+ * Identifies the primary website file even when named developer_portfolio.html,
+ * portfolio.html, home.html, or nested in public/dist/src.
+ */
+export function findPrimaryHtmlFile(files: Record<string, string>): string | null {
+  if (files['/index.html']) return '/index.html';
+  if (files['/index.htm']) return '/index.htm';
+
+  const htmlFiles = Object.keys(files).filter((path) => {
+    const lower = path.toLowerCase();
+    return lower.endsWith('.html') || lower.endsWith('.htm');
+  });
+
+  if (htmlFiles.length === 0) return null;
+
+  function scoreHtml(path: string): number {
+    const lower = path.toLowerCase();
+    const basename = lower.split('/').pop() || '';
+    let score = 0;
+
+    // Root-level files strongly prioritized
+    const depth = (path.match(/\//g) || []).length;
+    if (depth === 1) score += 60; // e.g. /developer_portfolio.html
+    else if (depth === 2 && (path.startsWith('/public/') || path.startsWith('/src/') || path.startsWith('/dist/'))) {
+      score += 40;
+    }
+
+    if (basename === 'index.html' || basename === 'index.htm') score += 100;
+    else if (basename.includes('index')) score += 80;
+    else if (basename.includes('home') || basename.includes('main')) score += 70;
+    else if (basename.includes('portfolio')) score += 65;
+    else if (basename.includes('app')) score += 50;
+    else if (basename.includes('demo') || basename.includes('site') || basename.includes('preview')) score += 40;
+
+    score -= path.length * 0.1;
+    return score;
+  }
+
+  htmlFiles.sort((a, b) => scoreHtml(b) - scoreHtml(a));
+  return htmlFiles[0];
 }
 
 function detectTemplate(packageJson: any, files: Record<string, string>): { template: SupportedSandpackTemplate; isPython: boolean } {
@@ -197,6 +241,11 @@ function detectEntryFile(files: Record<string, string>, template: string, isPyth
     if (anyPy) return anyPy;
   }
 
+  if (template === 'static') {
+    const primaryHtml = findPrimaryHtmlFile(files);
+    if (primaryHtml) return primaryHtml;
+  }
+
   const candidates: Record<string, string[]> = {
     'nextjs': ['/src/app/page.tsx', '/src/app/page.jsx', '/app/page.tsx', '/pages/index.tsx', '/pages/index.jsx', '/pages/index.js'],
     'vite-react-ts': ['/src/App.tsx', '/src/main.tsx', '/src/index.tsx'],
@@ -213,6 +262,17 @@ function detectEntryFile(files: Record<string, string>, template: string, isPyth
   for (const candidate of picks) {
     if (candidate in files) return candidate;
   }
+
+  const anyHtml = findPrimaryHtmlFile(files);
+  if (anyHtml) return anyHtml;
+
+  const anyCode = Object.keys(files).find((f) => f.match(/\.(js|jsx|ts|tsx)$/i));
+  if (anyCode) return anyCode;
+
+  const nonReadme = Object.keys(files).find(
+    (f) => !f.toLowerCase().includes('readme') && !f.toLowerCase().includes('license')
+  );
+  if (nonReadme) return nonReadme;
 
   const allPaths = Object.keys(files);
   return allPaths[0] || '/index.html';
@@ -384,6 +444,7 @@ export async function fetchGitHubRepoFiles(githubUrl: string): Promise<FetchRepo
   eligibleBlobs.sort((a, b) => {
     if (a.path === 'package.json') return -1;
     if (b.path === 'package.json') return 1;
+    if (a.path.toLowerCase().endsWith('.html')) return -1;
     if (a.path === 'main.py' || a.path === 'app.py') return -1;
     return a.path.length - b.path.length;
   });
@@ -409,10 +470,12 @@ export async function fetchGitHubRepoFiles(githubUrl: string): Promise<FetchRepo
     }
   }
 
+  // Detect package.json at root or subfolder
   let packageJson = null;
-  if (files['/package.json']) {
+  const pkgKey = Object.keys(files).find((k) => k === '/package.json' || k.endsWith('/package.json'));
+  if (pkgKey && files[pkgKey]) {
     try {
-      packageJson = JSON.parse(files['/package.json']);
+      packageJson = JSON.parse(files[pkgKey]);
     } catch {
       // ignore
     }
@@ -421,11 +484,51 @@ export async function fetchGitHubRepoFiles(githubUrl: string): Promise<FetchRepo
   const { template, isPython } = detectTemplate(packageJson, files);
   let entryFile = detectEntryFile(files, template, isPython);
 
-  // If it's a Python repo or static without index.html, inject our interactive runner
   if (isPython) {
     files['/index.html'] = generatePyodideRunnerHtml(files, entryFile);
-  } else if (template === 'static' && !files['/index.html']) {
-    files['/index.html'] = `<!DOCTYPE html>
+  } else if (template === 'static') {
+    const primaryHtml = findPrimaryHtmlFile(files);
+
+    if (primaryHtml) {
+      entryFile = primaryHtml;
+
+      // If the primary HTML is not already at /index.html, mount it as /index.html
+      // so Sandpack's static web server renders it immediately at the root route '/'
+      if (primaryHtml !== '/index.html') {
+        files['/index.html'] = files[primaryHtml];
+      }
+
+      // If primary HTML was located in a subfolder (e.g. /public/index.html or /dist/main.html),
+      // mirror its sibling assets to root so relative paths (e.g. ./styles.css) resolve properly
+      const subfolderMatch = primaryHtml.match(/^\/([^/]+)\//);
+      if (subfolderMatch) {
+        const prefix = `/${subfolderMatch[1]}/`;
+        for (const [path, content] of Object.entries(files)) {
+          if (path.startsWith(prefix) && path !== primaryHtml) {
+            const rootPath = '/' + path.slice(prefix.length);
+            if (!files[rootPath]) {
+              files[rootPath] = content;
+            }
+          }
+        }
+      }
+
+      // Provide explicit static package.json main entry point for Sandpack
+      if (!files['/package.json']) {
+        files['/package.json'] = JSON.stringify(
+          {
+            name: repo.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            version: '1.0.0',
+            dependencies: {},
+            main: '/index.html',
+          },
+          null,
+          2
+        );
+      }
+    } else {
+      // ONLY if there are NO HTML files at all in the repo, provide a file browser
+      files['/index.html'] = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -445,6 +548,7 @@ export async function fetchGitHubRepoFiles(githubUrl: string): Promise<FetchRepo
   </ul>
 </body>
 </html>`;
+    }
   }
 
   return {
@@ -498,7 +602,7 @@ if __name__ == "__main__":
         name: project.title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         version: '1.0.0',
         description: project.description,
-        main: 'index.js',
+        main: '/index.html',
         dependencies: {},
       },
       null,

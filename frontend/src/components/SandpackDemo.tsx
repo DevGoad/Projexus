@@ -34,9 +34,8 @@ type LoadState =
  * Sandpack-powered in-browser demo preview.
  *
  * When a valid GitHub URL is provided, it fetches the repo's source files
- * through the GitHub REST API and boots a full Node.js / React / static
- * environment directly in the recruiter's browser tab via Sandpack
- * (CodeSandbox WebContainers).
+ * through the GitHub REST API and boots a full Node.js / React / static / Python
+ * environment directly in the recruiter's browser tab via Sandpack.
  *
  * Zero install. Zero Docker. 2-second boot.
  */
@@ -203,7 +202,6 @@ export default function SandpackDemo({
         </div>
 
         <div className="mt-4 p-12 bg-[#060e1b] border border-[#1a3355] flex flex-col items-center justify-center text-center">
-          {/* Spinner */}
           <div className="w-12 h-12 border-2 border-[#162a45] border-t-amber-400 rounded-full animate-spin mb-4" />
           <p className="font-mono text-xs text-slate-300 mb-1">{state.message}</p>
           <p className="font-mono text-[11px] text-slate-500">
@@ -252,6 +250,14 @@ export default function SandpackDemo({
               {showEditor ? 'Hide Code' : 'View Source'}
             </button>
           )}
+
+          <button
+            onClick={loadRepo}
+            title="Reload repository from GitHub"
+            className="font-mono text-xs px-3 py-1.5 border border-[#224472] text-slate-300 hover:text-cyan-300 hover:border-cyan-400 transition-colors uppercase tracking-wider"
+          >
+            ⟳ Reload
+          </button>
 
           {demoUrl && (
             <a
@@ -319,7 +325,6 @@ export default function SandpackDemo({
           theme={blueprintTheme as any}
           options={{
             activeFile: activeFile,
-            visibleFiles: showEditor ? undefined : [activeFile],
             recompileMode: 'delayed',
             recompileDelay: 500,
           }}
@@ -335,7 +340,7 @@ export default function SandpackDemo({
               <>
                 <SandpackFileExplorer
                   style={{
-                    height: '500px',
+                    height: '520px',
                     minWidth: '180px',
                     maxWidth: '220px',
                     background: '#060d1a',
@@ -344,7 +349,7 @@ export default function SandpackDemo({
                 />
                 <SandpackCodeEditor
                   style={{
-                    height: '500px',
+                    height: '520px',
                     minWidth: '300px',
                     background: '#060d1a',
                   }}
@@ -356,7 +361,7 @@ export default function SandpackDemo({
             )}
             <SandpackPreviewPane
               style={{
-                height: showEditor ? '500px' : '480px',
+                height: showEditor ? '520px' : '500px',
                 minWidth: showEditor ? '400px' : '100%',
                 background: '#060d1a',
               }}
