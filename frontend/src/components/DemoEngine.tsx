@@ -1,113 +1,44 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Project } from '@/types';
+
+// Dynamically import SandpackDemo with ssr: false since Sandpack is browser-only
+const SandpackDemo = dynamic(() => import('@/components/SandpackDemo'), {
+  ssr: false,
+  loading: () => (
+    <div className="border border-[#162a45] bg-[#091426] p-8 mb-8 text-center font-mono">
+      <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+      <span className="text-xs text-slate-300 uppercase tracking-wider block">
+        Initializing In-Browser Sandpack Runtime...
+      </span>
+      <span className="text-[11px] text-slate-500 mt-1 block">
+        Zero-install environment · CodeSandbox WebContainer
+      </span>
+    </div>
+  ),
+});
 
 interface DemoEngineProps {
   project: Project;
 }
 
 export default function DemoEngine({ project }: DemoEngineProps) {
-  const [isLaunching, setIsLaunching] = useState(false);
-  const [isLiveActive, setIsLiveActive] = useState(false);
   const [simIndex, setSimIndex] = useState(0);
 
-  const { demo_type, demo_url, media_urls } = project;
+  const { demo_type, demo_url, media_urls, github_url, title, description, tech_stack } = project;
 
-  // Case 1 & 2: live_container or static_web -> Show "Launch Demo"
+  // Case 1 & 2: live_container or static_web -> In-browser Sandpack / WebContainer runtime
   if (demo_type === 'live_container' || demo_type === 'static_web') {
     return (
-      <div className="border border-[#162a45] bg-[#091426] p-6 mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#14263e]">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-                {demo_type === 'live_container' ? 'Containerized Live Runtime' : 'Static Web Runtime'}
-              </span>
-            </div>
-            <p className="font-mono text-xs text-slate-400">
-              {demo_type === 'live_container'
-                ? 'Docker container provisioned with verified test environment'
-                : 'Verified client-side web application build'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {demo_url && (
-              <a
-                href={demo_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-xs px-3 py-2 border border-[#224472] text-slate-300 hover:text-white hover:border-slate-400 transition-colors uppercase tracking-wider"
-              >
-                Open in Tab ↗
-              </a>
-            )}
-            <button
-              onClick={() => {
-                setIsLaunching(true);
-                setTimeout(() => {
-                  setIsLiveActive(!isLiveActive);
-                  setIsLaunching(false);
-                }, 400);
-              }}
-              disabled={isLaunching}
-              className="font-mono text-xs px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-[#070e1c] font-bold uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] flex items-center gap-2"
-            >
-              <span>{isLiveActive ? 'Close Live Demo' : 'Launch Demo'}</span>
-              <span className="text-sm">▶</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Live Container / Web Frame Viewer */}
-        {isLiveActive ? (
-          <div className="mt-4 border border-[#1a3355] bg-[#060e1b]">
-            <div className="px-4 py-2 bg-[#0d1c33] border-b border-[#1a3355] flex items-center justify-between font-mono text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span>runtime://{project.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.local:8000</span>
-              </div>
-              <span className="text-slate-500">Latency: 14ms · Memory: 128MB</span>
-            </div>
-            {demo_url ? (
-              <iframe
-                src={demo_url}
-                title={project.title}
-                className="w-full h-[480px] bg-slate-900 border-none"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
-            ) : (
-              <div className="h-[360px] flex flex-col items-center justify-center p-6 text-center">
-                <div className="font-mono text-cyan-400 text-sm mb-2">
-                  [CONTAINER ACTIVE & READY]
-                </div>
-                <p className="text-slate-400 text-xs max-w-md mb-4 font-mono">
-                  Container health check returned HTTP 200. Exposed internal ports: 8000 (API), 3000 (UI).
-                </p>
-                <div className="font-mono text-xs text-slate-500 bg-[#070e1a] p-3 border border-[#162a45] text-left w-full max-w-lg">
-                  <div>$ docker inspect container_projexus_{project.id}</div>
-                  <div className="text-emerald-400">State: Running (Healthy)</div>
-                  <div>StartedAt: 2026-09-29T11:45:00Z</div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-4 p-8 border border-dashed border-[#1a3355] bg-[#060e1b]/60 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 border border-amber-500/40 text-amber-400 flex items-center justify-center font-mono mb-3">
-              ▶
-            </div>
-            <h4 className="font-sans font-bold text-white text-base mb-1">
-              Interactive Execution Environment
-            </h4>
-            <p className="text-slate-400 text-xs max-w-lg mb-4">
-              Click &quot;Launch Demo&quot; to initialize the verified web interface. Evaluators can test features directly without manual local setup.
-            </p>
-          </div>
-        )}
-      </div>
+      <SandpackDemo
+        githubUrl={github_url}
+        title={title}
+        description={description}
+        techStack={tech_stack}
+        demoUrl={demo_url}
+      />
     );
   }
 
