@@ -1,4 +1,4 @@
-# PROJEXUS // Engineering Showcase Platform
+# PROJEXUS // Engineering Showcase Platform (In Development)
 
 A production-ready student engineering project showcase platform connecting graduating talent with industry recruiters before the interview.
 
